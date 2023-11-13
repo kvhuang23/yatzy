@@ -10,28 +10,42 @@ let selectedDiceElements; // HTMLCollection
 const diceArea = document.getElementById('diceArea');
 const selectedDiceArea = document.getElementById('selectedDiceArea');
 
-// Event listener for the roll button
-document.getElementById('rollDiceButton').addEventListener('click', function() {
-    fetch('/rollDice', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            diceSelected: diceSelected.length
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        diceOnTable = data;
+async function rollDie() {
+    let diceToRoll = 5 - diceSelected.length; // Assuming there are 5 dice in total.
+
+    try {
+        // Roll the dice
+        let response = await fetch('/rollDice', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                numberOfDice: diceToRoll
+            })
+        });
+
+        let data = await response.json();
+        diceOnTable = data.diceResults;
         drawDiceOnTable();
         updateDiceAnywhere();
-        // updateScoreTable(); // Assuming there's a function for updating scores
-    });
-});
+        updateScoreTable(); 
+
+        // Update the roll number on the server side after a roll
+        await updateRollOnServer();
+        checkGameState();
+    } catch (error) {
+        console.error("Error during dice roll or game state update:", error);
+    }
+}
+
+// Event listener for the roll button
+document.getElementById('rollDiceButton').addEventListener('click', rollDie);
 
 function drawDiceOnTable() {
     dieIndexHolder = [0,1,2,3,4]; // Reset die index holder
+
+    document.getElementById('diceArea').innerHTML = ''; // Clear table
 
     for (let i = diceOnTable.length - 1; i >= 0; i--) {
         drawDieOnTable(diceOnTable[i], dieIndexHolder[i]);
@@ -55,7 +69,7 @@ function selectDieFromTable() {
     diceSelected.push(diceValue);
     drawSelectedDice(diceValue, currentDieIndex);
     updateDiceAnywhere();
-    // updateScoreTable();
+    updateScoreTable();
 }
 
 function drawSelectedDice(value, index) {
@@ -76,7 +90,7 @@ function removeDieSelection() {
     drawDieOnTable(diceValue, currentDieIndex);
     this.parentNode.removeChild(this);
     updateDiceAnywhere();
-    // updateScoreTable();
+    updateScoreTable();
 }
 
 function drawDieOnTable(value, index) {
