@@ -1,20 +1,12 @@
 /*jshint esversion: 6 */
 
 // Scoring holders
-let numberOfYahtzees = 0;
-let yahtzeeScore = 0;
 let upperBonus = 0;
 let upperSectionsFilled = 0;
 let bonusActive = false;
-let finalScore = 0;
-
-// Selected duplicate dice information holder
-let duplicates = {};
 
 // DOM elements
 const upperBonusScoreField = document.getElementById('upper-bonus-score');
-const scoreMessage = document.getElementById('scoreMessage');
-const finalScoreElement = document.getElementById('finalScore');
 const yahtzeeLogo = document.getElementById('logo');
 
 // Make an array with the score box elements
@@ -27,33 +19,6 @@ for (let i = 1; i < 14; i++) {
 let speculativeScoreTabs = [];
 for (let i = 1; i < 14; i++) {
 	speculativeScoreTabs[i] = scoreFields[i].nextSibling.nextSibling;
-}
-
-function isInArray(value, array) {
-	return array.indexOf(value) > -1;
-}
-
-function sumArray(array) {
-	return array.reduce(function(prev, curr) {
-		return prev + curr;
-	}, 0);
-}
-
-function sumDuplicates(value, array) {
-	let count = 0;
-	for (let i = 0; i < array.length; i++) {
-		if (array[i] == value) {
-			count++;
-		}
-	}
-	return count * value;
-}
-
-function countDuplicates(array) {
-	duplicates = {};
-	array.forEach (function(i) {
-		duplicates[i] = (duplicates[i] || 0) + 1;
-	});
 }
 
 function updateUpperBonus() {
@@ -69,56 +34,70 @@ function updateUpperBonus() {
 	}
 }
 
-function lockScoreUpper() {
-	// This logic remains client-side as it's purely UI related
-	let score = this.innerHTML;
-	let scoreBox = this.previousSibling.previousSibling;
-	scoreBox.innerHTML = score;
-	upperBonus += parseInt(score);
-	upperSectionsFilled += 1;
-	roundNumber += 1;
-	if (!bonusActive) {
-		updateUpperBonus();
-	}
-	resetTable();
-	closeNav();
-	if (roundNumber === 14) {
-		rollButton.className = 'roll-3 disabled';
-		rollButton.removeEventListener('click', rollDie, false);
-		countFinalScore();
-	}
+async function lockScoreUpper() {
+    let score = this.innerHTML;
+    let scoreBox = this.previousSibling.previousSibling;
+    scoreBox.innerHTML = score;
+    upperBonus += parseInt(score);
+    upperSectionsFilled += 1;
+
+    // If bonus is not active, update the upper bonus.
+    if (!bonusActive) {
+        updateUpperBonus();
+    }
+
+    // Update the roll and round number on the server side after a score is locked
+    try {
+        await updateRollOnServer();
+    } catch (error) {
+        console.error("Error updating roll on server:", error);
+    }
+
+    // Fetch the updated game state from the server
+    try {
+        let response = await fetch('/gameState');
+        let data = await response.json();
+        roundNumber = data.roundNumber;
+        checkGameState();
+    } catch (error) {
+        console.error("Error fetching game state:", error);
+    }
+
+    resetTable();
+    closeNav();
 }
 
-function lockScoreLower() {
-	// This logic remains client-side as it's purely UI related
-	let score = this.innerHTML;
-	let scoreBox = this.previousSibling.previousSibling;
-	scoreBox.innerHTML = score;
-	roundNumber += 1;
-	resetTable();
-	closeNav();
-	if (roundNumber === 14) {
-		rollButton.className = 'roll-3 disabled';
-		rollButton.removeEventListener('click', rollDie, false);
-		countFinalScore();
-	}
+function checkGameState() {
+    if (roundNumber === 14) {
+        rollButton.className = 'roll-3 disabled';
+        rollButton.removeEventListener('click', rollDie, false);
+        countFinalScore();
+    }
 }
+async function lockScoreLower() {
+    let score = this.innerHTML;
+    let scoreBox = this.previousSibling.previousSibling;
+    scoreBox.innerHTML = score;
 
-function lockYahtzeeScore() {
-	// This logic remains client-side as it's purely UI related
-	let score = this.innerHTML;
-	let scoreBox = this.previousSibling.previousSibling;
-	scoreBox.innerHTML = score;
-	roundNumber += 1;
-	numberOfYahtzees += 1;
-	resetTable();
-	closeNav();
-	if (roundNumber === 14) {
-		rollButton.className = 'roll-3 disabled';
-		rollButton.removeEventListener('click', rollDie, false);
-		countFinalScore();
-	}
+    // Update the roll and round number on the server side after a score is locked
+    try {
+        await updateRollOnServer();
+    } catch (error) {
+        console.error("Error updating roll on server:", error);
+    }
 
+    // Fetch the updated game state from the server
+    try {
+        let response = await fetch('/gameState');
+        let data = await response.json();
+        roundNumber = data.roundNumber;
+        checkGameState();
+    } catch (error) {
+        console.error("Error fetching game state:", error);
+    }
+
+    resetTable();
+    closeNav();
 }
 
 function celebrateYahtzee() {
@@ -129,38 +108,95 @@ function celebrateYahtzee() {
 }
 
 function updateScoreTable() {
-	// Count duplicates for further calculations
-	countDuplicates(diceSelected);
+    // Send diceSelected to server to calculate potential scores
+    fetch('/updateScores', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ diceSelected: diceSelected })
+    })
+    .then(response => response.json())
+    .then(data => {
+        const scores = data.scores;
 
-	// Send diceSelected to server to calculate potential scores
-	fetch('/updateScores', {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-		},
-		body: JSON.stringify({ diceSelected: diceSelected })
-	})
-	.then(response => response.json())
-	.then(data => {
-		// Use data returned from server to update the score table UI
-		// Logic truncated for brevity...
-	});
+        // Update speculative score tabs based on scores returned from server
+        for (let key in scores) {
+            let scoreValue = scores[key];
+            let tabElement;
+
+            switch (key) {
+                case 'number1':
+                case 'number2':
+                case 'number3':
+                case 'number4':
+                case 'number5':
+                case 'number6':
+                    tabElement = speculativeScoreTabs[parseInt(key.replace('number', ''))];
+                    break;
+                case 'threeOfAKind':
+                    tabElement = speculativeScoreTabs[7];
+                    break;
+                case 'fourOfAKind':
+                    tabElement = speculativeScoreTabs[8];
+                    break;
+                case 'fullHouse':
+                    tabElement = speculativeScoreTabs[9];
+                    break;
+                case 'smallStraight':
+                    tabElement = speculativeScoreTabs[10];
+                    break;
+                case 'largeStraight':
+                    tabElement = speculativeScoreTabs[11];
+                    break;
+                case 'chance':
+                    tabElement = speculativeScoreTabs[13];
+                    break;
+                case 'yahtzee':
+                    tabElement = speculativeScoreTabs[12];
+                    break;
+                default:
+                    break;
+            }
+
+            if (tabElement) {
+                tabElement.style.display = 'table-cell';
+                tabElement.className = 'speculative-score';
+                tabElement.innerHTML = scoreValue;
+                
+                if (key.startsWith('number')) {
+                    tabElement.addEventListener('click', lockScoreUpper, false);
+                } else {
+                    tabElement.addEventListener('click', lockScoreLower, false);
+                }
+            }
+        }
+    });
 }
 
 function countFinalScore() {
-	// Send current scores to server for final score calculation
-	fetch('/countFinalScore', {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-		},
-		body: JSON.stringify({ scores: scoreFields.map(field => parseInt(field.innerHTML) || 0) })
-	})
-	.then(response => response.json())
-	.then(data => {
-		// Update the UI based on data received from server
-		// Logic truncated for brevity...
-	});
+    // Send current scores to server for final score calculation
+    fetch('/countFinalScore', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ scores: scoreFields.map(field => parseInt(field.innerHTML) || 0) })
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Update the UI based on data received from server
+        const finalScoreElement = document.getElementById('final-score'); // Assuming you have an element with id 'final-score' to display the final score
+        if (finalScoreElement) {
+            finalScoreElement.innerHTML = `Final Score: ${data.finalScore}`;
+        }
+        
+        // Optionally, you can display some kind of congratulatory message or animation depending on the final score
+        if (data.finalScore >= 200) {  // Assuming 200 is a high score
+            alert("Congratulations! You've scored above 200!");
+        }
+    });
 }
+
 
 // ... (Other client-side logic)

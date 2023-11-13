@@ -6,8 +6,6 @@ let roundNumber = 1;
 
 // DOM elements
 const rollButton = document.getElementById('rollDiceButton');
-const rulesButton = document.getElementById('openRulesButton');
-const closeRulesButton = document.getElementById('closeRulesButton');
 const openScoreSheet = document.getElementById('openScoreSheetButton');
 const closeScoreSheet = document.getElementById('closeScoreSheetButton');
 const roundNumberElement = document.getElementById('round-number');
@@ -17,8 +15,6 @@ const speculativeScoreTab = document.getElementsByClassName('speculative-score')
 
 openScoreSheet.addEventListener('click', openNav, false);
 closeScoreSheet.addEventListener('click', closeNav, false);
-rulesButton.addEventListener('click', openRules, false);
-closeRulesButton.addEventListener('click', closeRules, false);
 window.addEventListener('resize', windowResize, false);
 
 checkRollNumber();
@@ -45,15 +41,12 @@ function checkRollNumber() {
             switch (rollNumber) {
                 case 0:
                     rollButton.className = '';
-                    updateRollOnServer();
                     break;
                 case 1:
                     rollButton.className = 'roll-1';
-                    updateRollOnServer();
                     break;
                 case 2:
                     rollButton.className = 'roll-2';
-                    updateRollOnServer();
                     break;
                 case 3:
                     rollButton.className = 'roll-3';
@@ -89,19 +82,20 @@ function updateRoundNumber() {
     roundNumberElement.innerHTML = Math.min(roundNumber, 13);
 }
 
-function resetTable() {
-   diceOnTable = []; // Reset on-table die array
-   diceSelected = []; // Reset selected die array
-   dieIndexHolder = [0,1,2,3,4]; // Reset die index holder
-   updateDiceAnywhere(); // Reset dice in play array
-   rollNumber = 0;
-   checkRollNumber();
-   hideSpeculativeScores();
-   updateRoundNumber();
-   rollButton.addEventListener('click', rollDie, false);
-   selectedDiceArea.innerHTML = '';
-   diceArea.innerHTML = '';
-}
+async function resetTable() {
+    diceOnTable = []; // Reset on-table die array
+    diceSelected = []; // Reset selected die array
+    dieIndexHolder = [0,1,2,3,4]; // Reset die index holder
+    updateDiceAnywhere(); // Reset dice in play array
+    
+    checkRollNumber();
+    hideSpeculativeScores();
+    updateRoundNumber();
+    rollButton.addEventListener('click', rollDie, false);
+    selectedDiceArea.innerHTML = '';
+    diceArea.innerHTML = '';
+ }
+ 
 
 function resetGame() {
     fetch('/resetGame', {
@@ -111,18 +105,6 @@ function resetGame() {
         window.location.reload(false);
     });
 }
-
-function openRules() {
-	siteWrapper.className = 'show-rules';
-	rulesButton.style.opacity = 0;
-}
-
-function closeRules() {
-	siteWrapper.className = '';
-	scroll(0,0);
-	rulesButton.style.opacity = 1;
-}
-
 
 function openNav() {
 	siteWrapper.className = 'show-nav';
