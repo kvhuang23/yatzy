@@ -134,31 +134,3 @@ function closeNav() {
 	scroll(0,0);
 	openScoreSheet.style.opacity = 1;
 }
-
-// Get the rendered style of an element
-// http://robertnyman.com/2006/04/24/get-the-rendered-style-of-an-element/
-function getStyle(oElm, strCssRule){
-	let strValue = "";
-	if(document.defaultView && document.defaultView.getComputedStyle){
-		strValue = document.defaultView.getComputedStyle(oElm, "").getPropertyValue(strCssRule);
-	}
-	else if(oElm.currentStyle){
-		strCssRule = strCssRule.replace(/\-(\w)/g, function (strMatch, p1){
-			return p1.toUpperCase();
-		});
-		strValue = oElm.currentStyle[strCssRule];
-	}
-	return strValue;
-}
-
-// If 'Scores' button is visible, add quick access to it with swipe touch control
-if (getStyle(openScoreSheet, 'visibility') !== 'hidden') {
-	const hammertime = new Hammer(siteWrapper);
-	hammertime.on('swipeleft', function() {
-		openNav();
-	});
-
-	hammertime.on('swiperight', function() {
-		closeNav();
-	});
-}
